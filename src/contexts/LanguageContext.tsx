@@ -62,6 +62,7 @@ const translations = {
     loginFailed: 'Login failed',
     signupFailed: 'Signup failed',
     logout: 'Logout',
+    viewDetails: 'View Details',
   },
   ar: {
     appName: 'محلل السوق',
@@ -122,6 +123,7 @@ const translations = {
     loginFailed: 'فشل تسجيل الدخول',
     signupFailed: 'فشل إنشاء الحساب',
     logout: 'تسجيل الخروج',
+    viewDetails: 'عرض التفاصيل',
   }
 };
 
