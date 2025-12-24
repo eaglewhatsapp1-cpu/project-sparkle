@@ -71,7 +71,7 @@ const Index = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8 gap-1">
+          <TabsList className="grid w-full grid-cols-3 mb-8 gap-1">
             <TabsTrigger value="summary" className="flex items-center gap-2.5 py-3">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline font-medium">{t('overview')}</span>
@@ -83,10 +83,6 @@ const Index = () => {
             <TabsTrigger value="chat" className="flex items-center gap-2.5 py-3">
               <MessageSquare className="h-4 w-4" />
               <span className="hidden sm:inline font-medium">{t('aiAdvisor')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="finance" className="flex items-center gap-2.5 py-3">
-              <TrendingUp className="h-4 w-4" />
-              <span className="hidden sm:inline font-medium">{t('financialForecast')}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -107,10 +103,6 @@ const Index = () => {
               projectId={selectedProject?.id}
               projectName={selectedProject?.name}
             />
-          </TabsContent>
-
-          <TabsContent value="finance" className="mt-0">
-            <FinanceTab />
           </TabsContent>
         </Tabs>
       </main>
