@@ -63,6 +63,21 @@ const translations = {
     signupFailed: 'Signup failed',
     logout: 'Logout',
     viewDetails: 'View Details',
+    // Workspace & Project
+    selectWorkspace: 'Select Workspace',
+    selectProject: 'Select Project',
+    newWorkspace: 'New Workspace',
+    newProject: 'New Project',
+    createWorkspace: 'Create Workspace',
+    createProject: 'Create Project',
+    workspaceName: 'Workspace name',
+    projectName: 'Project name',
+    description: 'Description (optional)',
+    create: 'Create',
+    workspaceCreated: 'Workspace created',
+    projectCreated: 'Project created',
+    workspaceDeleted: 'Workspace deleted',
+    projectDeleted: 'Project deleted',
   },
   ar: {
     appName: 'محلل السوق',
@@ -124,6 +139,21 @@ const translations = {
     signupFailed: 'فشل إنشاء الحساب',
     logout: 'تسجيل الخروج',
     viewDetails: 'عرض التفاصيل',
+    // Workspace & Project
+    selectWorkspace: 'اختر مساحة العمل',
+    selectProject: 'اختر المشروع',
+    newWorkspace: 'مساحة عمل جديدة',
+    newProject: 'مشروع جديد',
+    createWorkspace: 'إنشاء مساحة عمل',
+    createProject: 'إنشاء مشروع',
+    workspaceName: 'اسم مساحة العمل',
+    projectName: 'اسم المشروع',
+    description: 'الوصف (اختياري)',
+    create: 'إنشاء',
+    workspaceCreated: 'تم إنشاء مساحة العمل',
+    projectCreated: 'تم إنشاء المشروع',
+    workspaceDeleted: 'تم حذف مساحة العمل',
+    projectDeleted: 'تم حذف المشروع',
   }
 };
 
