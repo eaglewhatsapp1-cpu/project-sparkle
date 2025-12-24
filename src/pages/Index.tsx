@@ -71,22 +71,22 @@ const Index = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
-            <TabsTrigger value="summary" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-4 mb-8 gap-1">
+            <TabsTrigger value="summary" className="flex items-center gap-2.5 py-3">
               <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('overview')}</span>
+              <span className="hidden sm:inline font-medium">{t('overview')}</span>
             </TabsTrigger>
-            <TabsTrigger value="knowledge" className="flex items-center gap-2">
+            <TabsTrigger value="knowledge" className="flex items-center gap-2.5 py-3">
               <Database className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('knowledgeBase')}</span>
+              <span className="hidden sm:inline font-medium">{t('knowledgeBase')}</span>
             </TabsTrigger>
-            <TabsTrigger value="chat" className="flex items-center gap-2">
+            <TabsTrigger value="chat" className="flex items-center gap-2.5 py-3">
               <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('aiAdvisor')}</span>
+              <span className="hidden sm:inline font-medium">{t('aiAdvisor')}</span>
             </TabsTrigger>
-            <TabsTrigger value="finance" className="flex items-center gap-2">
+            <TabsTrigger value="finance" className="flex items-center gap-2.5 py-3">
               <TrendingUp className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('financialForecast')}</span>
+              <span className="hidden sm:inline font-medium">{t('financialForecast')}</span>
             </TabsTrigger>
           </TabsList>
 
