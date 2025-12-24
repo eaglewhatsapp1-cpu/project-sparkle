@@ -107,6 +107,12 @@ const Index = () => {
         </Tabs>
       </main>
 
+      <footer className="border-t bg-card py-4 mt-8">
+        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
+          Designed by Elhamy Sobhy
+        </div>
+      </footer>
+
       <Dialog open={!!selectedCountry} onOpenChange={() => setSelectedCountry(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           {selectedCountry && (
