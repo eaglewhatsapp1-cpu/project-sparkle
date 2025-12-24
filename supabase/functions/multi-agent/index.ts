@@ -244,20 +244,27 @@ async function loadContext(
   return truncateContent(context, 4000);
 }
 
-// ==== EXTRACT USER ID ====
-async function extractUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
+// ==== EXTRACT USER ID (REQUIRED) ====
+async function extractUserId(authHeader: string | null): Promise<{ userId: string | null; error: string | null }> {
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { userId: null, error: "Authentication required" };
+  }
   const token = authHeader.replace("Bearer ", "");
-  if (token === SUPABASE_ANON_KEY) return null;
+  if (token === SUPABASE_ANON_KEY) {
+    return { userId: null, error: "Authentication required" };
+  }
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user } } = await supabase.auth.getUser();
-    return user?.id || null;
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      return { userId: null, error: "Invalid or expired token" };
+    }
+    return { userId: user.id, error: null };
   } catch {
-    return null;
+    return { userId: null, error: "Authentication failed" };
   }
 }
 
@@ -416,7 +423,19 @@ serve(async (req) => {
     const body = await req.json();
     const { action, agentId, message, workspaceId, projectId, autoWorkflow } = body;
 
-    const userId = await extractUserId(req.headers.get("Authorization"));
+    // Require authentication for all actions except list-agents
+    const { userId, error: authError } = await extractUserId(req.headers.get("Authorization"));
+    
+    // Allow list-agents without auth for UI to show available agents
+    if (action !== "list-agents") {
+      if (authError || !userId) {
+        return new Response(JSON.stringify({ error: authError || "Authentication required" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+    }
+    
     const context = await loadContext(userId, workspaceId, projectId);
 
     console.log(`Multi-agent request - Action: ${action}, Agent: ${agentId || 'auto'}, User: ${userId || 'anonymous'}`);
