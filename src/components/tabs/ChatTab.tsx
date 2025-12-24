@@ -92,7 +92,11 @@ export function ChatTab({ workspaceId, projectId, projectName }: ChatTabProps) {
       if (error) throw error;
 
       if (data.questions && Array.isArray(data.questions)) {
-        setSuggestedQuestions(data.questions.slice(0, 5));
+        // Handle both array of strings and array of objects with question property
+        const questions = data.questions.slice(0, 5).map((q: any) => 
+          typeof q === 'string' ? q : (q.question || q.text || String(q))
+        );
+        setSuggestedQuestions(questions);
         return;
       }
 
