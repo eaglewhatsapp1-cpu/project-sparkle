@@ -256,22 +256,28 @@ async function callLovableAI(
   return content;
 }
 
-// ==== EXTRACT USER ID FROM AUTH HEADER ====
-async function extractUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
+// ==== EXTRACT USER ID FROM AUTH HEADER (REQUIRED) ====
+async function extractUserId(authHeader: string | null): Promise<{ userId: string | null; error: string | null }> {
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { userId: null, error: "Authentication required" };
+  }
 
   const token = authHeader.replace("Bearer ", "");
-  if (token === SUPABASE_ANON_KEY) return null;
+  if (token === SUPABASE_ANON_KEY) {
+    return { userId: null, error: "Authentication required" };
+  }
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return null;
-    return user.id;
+    if (error || !user) {
+      return { userId: null, error: "Invalid or expired token" };
+    }
+    return { userId: user.id, error: null };
   } catch {
-    return null;
+    return { userId: null, error: "Authentication failed" };
   }
 }
 
@@ -357,9 +363,17 @@ serve(async (req) => {
     }
 
     const { messages, type, country, workspaceId, projectId } = validation.data;
-    const userId = await extractUserId(req.headers.get("Authorization"));
+    
+    // Require authentication
+    const { userId, error: authError } = await extractUserId(req.headers.get("Authorization"));
+    if (authError || !userId) {
+      return new Response(JSON.stringify({ error: authError || "Authentication required" }), { 
+        status: 401, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
 
-    console.log(`AI Chat request - Type: ${type}, User: ${userId || 'anonymous'}`);
+    console.log(`AI Chat request - Type: ${type}, User: ${userId}`);
 
     const { documents, customPrompt, companyName, imageUrls } = await loadUserKnowledgeBase(userId, workspaceId, projectId);
     const countriesContext = await fetchUserCountries(userId);

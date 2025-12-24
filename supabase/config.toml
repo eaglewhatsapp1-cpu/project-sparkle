@@ -1,10 +1,10 @@
 project_id = "abpatwjdnjbsxcglrhqy"
 
 [functions.ai-chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.multi-agent]
-verify_jwt = false
+verify_jwt = true
 
 [functions.document-processing]
 verify_jwt = true
