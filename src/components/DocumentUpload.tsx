@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, Trash2, Loader2, FileText, FileType, Image, FileCode, FileSpreadsheet, CloudUpload, Sparkles, FolderOpen } from 'lucide-react';
+import { Upload, Trash2, Loader2, FileText, FileType, Image, FileCode, FileSpreadsheet, CloudUpload, Sparkles, FolderOpen, ScanText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,6 +18,7 @@ interface Document {
   file_size: number;
   file_path: string;
   created_at: string;
+  content?: string | null;
 }
 
 const ALLOWED_TYPES = [
@@ -41,6 +42,7 @@ const ALLOWED_TYPES = [
 ];
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+const OCR_SUPPORTED_TYPES = [...IMAGE_TYPES, 'application/pdf'];
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
 interface DocumentUploadProps {
@@ -49,12 +51,13 @@ interface DocumentUploadProps {
 }
 
 export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [ocrProcessingId, setOcrProcessingId] = useState<string | null>(null);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['documents', user?.id, workspaceId, projectId],
@@ -96,12 +99,14 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
       if (textTypes.includes(file.type) || file.name.endsWith('.md') || file.name.endsWith('.json')) {
         content = await file.text();
       } else if (IMAGE_TYPES.includes(file.type)) {
-        content = `[IMAGE: ${file.name}] Visual content available for AI analysis.`;
+        content = `[IMAGE: ${file.name}] Visual content - use OCR to extract text.`;
+      } else if (file.type === 'application/pdf') {
+        content = `[PDF: ${file.name}] Document uploaded - use OCR to extract text.`;
       } else {
         content = `[${file.type}] File uploaded for analysis.`;
       }
 
-      const { error: dbError } = await supabase.from('documents').insert({
+      const { data: insertedDoc, error: dbError } = await supabase.from('documents').insert({
         user_id: user.id,
         workspace_id: workspaceId ?? null,
         project_id: projectId ?? null,
@@ -110,9 +115,10 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
         file_path: filePath,
         file_size: file.size,
         content,
-      });
+      }).select().single();
 
       if (dbError) throw dbError;
+      return insertedDoc;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
@@ -120,6 +126,34 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
     },
     onError: (error: any) => {
       toast.error(error.message || t('uploadFailed'));
+    },
+  });
+
+  const ocrMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      
+      if (!token) throw new Error('Not authenticated');
+
+      const response = await supabase.functions.invoke('ocr-extract', {
+        body: { documentId },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.error) throw new Error(response.error.message || 'OCR processing failed');
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      toast.success(language === 'ar' ? 'تم استخراج النص بنجاح' : 'Text extracted successfully');
+      setOcrProcessingId(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'OCR processing failed');
+      setOcrProcessingId(null);
     },
   });
 
@@ -164,6 +198,11 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
       await uploadMutation.mutateAsync(file);
     }
     setIsUploading(false);
+  };
+
+  const handleOCR = async (doc: Document) => {
+    setOcrProcessingId(doc.id);
+    ocrMutation.mutate(doc.id);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -211,6 +250,14 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
     if (type.includes('word') || type.includes('document')) return 'Word';
     if (type.includes('text') || type.includes('plain')) return 'Text';
     return 'File';
+  };
+
+  const canPerformOCR = (doc: Document) => {
+    return OCR_SUPPORTED_TYPES.includes(doc.file_type);
+  };
+
+  const hasExtractedContent = (doc: Document) => {
+    return doc.content && !doc.content.startsWith('[IMAGE:') && !doc.content.startsWith('[PDF:');
   };
 
   return (
@@ -288,6 +335,11 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
                     </Badge>
                   ))}
                 </div>
+                {/* OCR Info */}
+                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                  <ScanText className="h-4 w-4" />
+                  <span>{language === 'ar' ? 'يدعم OCR للعربية والإنجليزية' : 'OCR support for Arabic & English'}</span>
+                </div>
               </div>
             )}
           </div>
@@ -332,7 +384,7 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
                         {getFileIcon(doc.file_type)}
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm font-medium truncate max-w-[180px] sm:max-w-[250px]">
+                        <p className="text-sm font-medium truncate max-w-[140px] sm:max-w-[200px]">
                           {doc.file_name}
                         </p>
                         <div className="flex items-center gap-2">
@@ -342,22 +394,47 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
                           <span className="text-xs text-muted-foreground">
                             {formatFileSize(doc.file_size)}
                           </span>
+                          {hasExtractedContent(doc) && (
+                            <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-success/20 text-success">
+                              OCR ✓
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteMutation.mutate(doc)}
-                      disabled={deleteMutation.isPending}
-                      className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                    >
-                      {deleteMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
+                    <div className="flex items-center gap-1">
+                      {/* OCR Button */}
+                      {canPerformOCR(doc) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOCR(doc)}
+                          disabled={ocrProcessingId === doc.id}
+                          className="h-9 w-9 hover:bg-primary/10 hover:text-primary transition-colors"
+                          title={language === 'ar' ? 'استخراج النص (OCR)' : 'Extract Text (OCR)'}
+                        >
+                          {ocrProcessingId === doc.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <ScanText className="h-4 w-4" />
+                          )}
+                        </Button>
                       )}
-                    </Button>
+                      {/* Delete Button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteMutation.mutate(doc)}
+                        disabled={deleteMutation.isPending}
+                        className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        {deleteMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>

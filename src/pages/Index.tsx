@@ -32,7 +32,7 @@ const Index = () => {
   const { t, language } = useLanguage();
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('summary');
+  const [activeTab, setActiveTab] = useState('knowledge');
   const [selectedCountry, setSelectedCountry] = useState<CountryData | null>(null);
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -57,7 +57,10 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Header 
+        workspaceName={selectedWorkspace?.name}
+        projectName={selectedProject?.name}
+      />
       
       <main className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Workspace & Project Selector */}
@@ -72,10 +75,6 @@ const Index = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-8 gap-1">
-            <TabsTrigger value="summary" className="flex items-center gap-2.5 py-3">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline font-medium">{t('overview')}</span>
-            </TabsTrigger>
             <TabsTrigger value="knowledge" className="flex items-center gap-2.5 py-3">
               <Database className="h-4 w-4" />
               <span className="hidden sm:inline font-medium">{t('knowledgeBase')}</span>
@@ -84,11 +83,11 @@ const Index = () => {
               <MessageSquare className="h-4 w-4" />
               <span className="hidden sm:inline font-medium">{t('aiAdvisor')}</span>
             </TabsTrigger>
+            <TabsTrigger value="summary" className="flex items-center gap-2.5 py-3">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline font-medium">{t('overview')}</span>
+            </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="summary" className="mt-0">
-            <SummaryTab onViewCountry={setSelectedCountry} />
-          </TabsContent>
 
           <TabsContent value="knowledge" className="mt-0">
             <KnowledgeBaseTab
@@ -103,6 +102,10 @@ const Index = () => {
               projectId={selectedProject?.id}
               projectName={selectedProject?.name}
             />
+          </TabsContent>
+
+          <TabsContent value="summary" className="mt-0">
+            <SummaryTab onViewCountry={setSelectedCountry} />
           </TabsContent>
         </Tabs>
       </main>
