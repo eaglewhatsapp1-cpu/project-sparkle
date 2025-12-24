@@ -65,6 +65,19 @@ export function ChatTab({ workspaceId, projectId, projectName }: ChatTabProps) {
   const [currentWorkflow, setCurrentWorkflow] = useState<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Valid agent IDs that exist in the backend
+  const validAgentIds = ['research', 'analyst', 'writer', 'strategist'];
+  
+  // Handler that validates agent selection
+  const handleSelectAgent = (agentId: string | null) => {
+    if (agentId === null || validAgentIds.includes(agentId)) {
+      setSelectedAgent(agentId);
+    } else {
+      console.warn(`Invalid agent ID: ${agentId}, clearing selection`);
+      setSelectedAgent(null);
+    }
+  };
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -272,7 +285,7 @@ export function ChatTab({ workspaceId, projectId, projectName }: ChatTabProps) {
     <div className="space-y-4 animate-in fade-in duration-500 flex flex-col h-[calc(100vh-280px)]">
       <AgentSelector
         selectedAgent={selectedAgent}
-        onSelectAgent={setSelectedAgent}
+        onSelectAgent={handleSelectAgent}
         autoWorkflow={autoWorkflow}
         onToggleAutoWorkflow={() => setAutoWorkflow(!autoWorkflow)}
       />
