@@ -1,16 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/Header';
+import { WorkspaceSelector } from '@/components/WorkspaceSelector';
 import { SummaryTab } from '@/components/tabs/SummaryTab';
 import { ChatTab } from '@/components/tabs/ChatTab';
 import { FinanceTab } from '@/components/tabs/FinanceTab';
+import { KnowledgeBaseTab } from '@/components/tabs/KnowledgeBaseTab';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart3, MessageSquare, TrendingUp } from 'lucide-react';
+import { BarChart3, MessageSquare, TrendingUp, Database, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { CountryData } from '@/data/countriesData';
+
+interface Workspace {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  workspace_id: string | null;
+  created_at: string;
+}
 
 const Index = () => {
   const { t, language } = useLanguage();
@@ -18,6 +34,8 @@ const Index = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('summary');
   const [selectedCountry, setSelectedCountry] = useState<CountryData | null>(null);
+  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -28,7 +46,7 @@ const Index = () => {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="animate-pulse text-primary text-xl">Loading...</div>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -42,11 +60,25 @@ const Index = () => {
       <Header />
       
       <main className="container mx-auto px-4 py-6 max-w-7xl">
+        {/* Workspace & Project Selector */}
+        <div className="mb-6">
+          <WorkspaceSelector
+            selectedWorkspace={selectedWorkspace}
+            selectedProject={selectedProject}
+            onWorkspaceChange={setSelectedWorkspace}
+            onProjectChange={setSelectedProject}
+          />
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="summary" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">{t('overview')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="knowledge" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('knowledgeBase')}</span>
             </TabsTrigger>
             <TabsTrigger value="chat" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
@@ -62,8 +94,19 @@ const Index = () => {
             <SummaryTab onViewCountry={setSelectedCountry} />
           </TabsContent>
 
+          <TabsContent value="knowledge" className="mt-0">
+            <KnowledgeBaseTab
+              workspaceId={selectedWorkspace?.id}
+              projectId={selectedProject?.id}
+            />
+          </TabsContent>
+
           <TabsContent value="chat" className="mt-0">
-            <ChatTab />
+            <ChatTab
+              workspaceId={selectedWorkspace?.id}
+              projectId={selectedProject?.id}
+              projectName={selectedProject?.name}
+            />
           </TabsContent>
 
           <TabsContent value="finance" className="mt-0">
