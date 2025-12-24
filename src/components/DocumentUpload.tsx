@@ -1,13 +1,15 @@
 import { useState, useRef } from 'react';
-import { Upload, Trash2, Loader2, FileText, FileType, Image, FileCode, FileSpreadsheet } from 'lucide-react';
+import { Upload, Trash2, Loader2, FileText, FileType, Image, FileCode, FileSpreadsheet, CloudUpload, Sparkles, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
 
 interface Document {
   id: string;
@@ -52,6 +54,7 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['documents', user?.id, workspaceId, projectId],
@@ -143,9 +146,13 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    await processFiles(Array.from(files));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
+  const processFiles = async (files: File[]) => {
     setIsUploading(true);
-    for (const file of Array.from(files)) {
+    for (const file of files) {
       if (!ALLOWED_TYPES.includes(file.type)) {
         toast.error(`${file.name}: ${t('invalidFileType')}`);
         continue;
@@ -157,7 +164,25 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
       await uploadMutation.mutateAsync(file);
     }
     setIsUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      await processFiles(files);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -167,29 +192,54 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
   };
 
   const getFileIcon = (type: string) => {
-    if (type.includes('pdf')) return <FileType className="h-4 w-4 text-destructive" />;
-    if (type.includes('image')) return <Image className="h-4 w-4 text-green-500" />;
+    if (type.includes('pdf')) return <FileType className="h-5 w-5 text-destructive" />;
+    if (type.includes('image')) return <Image className="h-5 w-5 text-success" />;
     if (type.includes('spreadsheet') || type.includes('excel') || type.includes('csv'))
-      return <FileSpreadsheet className="h-4 w-4 text-emerald-500" />;
+      return <FileSpreadsheet className="h-5 w-5 text-success" />;
     if (type.includes('json') || type.includes('xml') || type.includes('html'))
-      return <FileCode className="h-4 w-4 text-blue-500" />;
-    return <FileText className="h-4 w-4 text-primary" />;
+      return <FileCode className="h-5 w-5 text-secondary" />;
+    return <FileText className="h-5 w-5 text-primary" />;
+  };
+
+  const getFileTypeBadge = (type: string) => {
+    if (type.includes('pdf')) return 'PDF';
+    if (type.includes('image')) return 'Image';
+    if (type.includes('spreadsheet') || type.includes('excel')) return 'Excel';
+    if (type.includes('csv')) return 'CSV';
+    if (type.includes('json')) return 'JSON';
+    if (type.includes('xml')) return 'XML';
+    if (type.includes('word') || type.includes('document')) return 'Word';
+    if (type.includes('text') || type.includes('plain')) return 'Text';
+    return 'File';
   };
 
   return (
-    <Card className="border-primary/20 shadow-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Upload className="h-5 w-5 text-primary" />
+    <Card className="glass-morphism border-primary/20 shadow-card overflow-hidden">
+      <CardHeader className="bg-gradient-hero pb-4">
+        <CardTitle className="flex items-center gap-3 text-lg">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-accent shadow-glow">
+            <CloudUpload className="h-5 w-5 text-primary-foreground" />
+          </div>
           {t('knowledgeBase')}
         </CardTitle>
-        <CardDescription>{t('knowledgeBaseDescription')}</CardDescription>
+        <CardDescription className="text-muted-foreground/80">
+          {t('knowledgeBaseDescription')}
+        </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5 pt-5">
+        {/* Upload Zone */}
         <div
           onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer bg-muted hover:bg-muted/80 transition-colors border-primary/30"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={cn(
+            "relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-300 group",
+            isDragging 
+              ? "border-primary bg-primary/10 scale-[1.02]" 
+              : "border-primary/30 bg-muted/30 hover:bg-muted/50 hover:border-primary/50"
+          )}
         >
           <input
             ref={fileInputRef}
@@ -199,57 +249,133 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
             onChange={handleFileSelect}
             className="hidden"
           />
-          {isUploading ? (
-            <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
-          ) : (
-            <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-          )}
-          <p className="mt-2 text-muted-foreground">{t('dragDropFiles')}</p>
-          <p className="mt-1 text-xs text-muted-foreground/70">
-            PDF, Word, Text, Images, CSV, JSON, XML
-          </p>
+          
+          <div className="relative">
+            {isUploading ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-4 rounded-full bg-primary/10">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                </div>
+                <p className="text-primary font-medium">{t('uploading')}...</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4">
+                <div className={cn(
+                  "p-5 rounded-2xl transition-all duration-300",
+                  isDragging 
+                    ? "bg-primary/20 scale-110" 
+                    : "bg-gradient-to-br from-primary/10 to-accent/10 group-hover:scale-105"
+                )}>
+                  <Upload className={cn(
+                    "h-10 w-10 transition-colors",
+                    isDragging ? "text-primary" : "text-muted-foreground group-hover:text-primary"
+                  )} />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">{t('dragDropFiles')}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t('clickToBrowse')}
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-2 mt-2">
+                  {['PDF', 'Word', 'Excel', 'Images', 'JSON', 'CSV'].map((type) => (
+                    <Badge 
+                      key={type} 
+                      variant="secondary" 
+                      className="bg-muted/60 text-muted-foreground text-xs"
+                    >
+                      {type}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {isLoading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        {/* Documents List */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold text-sm flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-primary" />
+              {t('uploadedDocuments')}
+            </h4>
+            {documents.length > 0 && (
+              <Badge variant="outline" className="text-xs">
+                {documents.length} {documents.length === 1 ? 'file' : 'files'}
+              </Badge>
+            )}
           </div>
-        ) : documents.length > 0 ? (
-          <ScrollArea className="h-[200px]">
-            <div className="space-y-2">
-              {documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="flex items-center justify-between p-3 rounded-lg border bg-muted"
-                >
-                  <div className="flex items-center gap-3">
-                    {getFileIcon(doc.file_type)}
-                    <div>
-                      <p className="text-sm font-medium truncate max-w-[200px]">
-                        {doc.file_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(doc.file_size)}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteMutation.mutate(doc)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              ))}
+
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">{t('loading')}...</p>
+              </div>
             </div>
-          </ScrollArea>
-        ) : (
-          <p className="text-center text-sm text-muted-foreground py-4">
-            {t('noDocuments')}
-          </p>
-        )}
+          ) : documents.length > 0 ? (
+            <ScrollArea className="h-[280px] pr-4">
+              <div className="space-y-2">
+                {documents.map((doc, index) => (
+                  <div
+                    key={doc.id}
+                    className={cn(
+                      "flex items-center justify-between p-4 rounded-xl border bg-card/50 backdrop-blur-sm",
+                      "hover:bg-card hover:border-primary/30 hover:shadow-md transition-all duration-200",
+                      "animate-fade-in"
+                    )}
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-2.5 rounded-xl bg-muted/60">
+                        {getFileIcon(doc.file_type)}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium truncate max-w-[180px] sm:max-w-[250px]">
+                          {doc.file_name}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+                            {getFileTypeBadge(doc.file_type)}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {formatFileSize(doc.file_size)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteMutation.mutate(doc)}
+                      disabled={deleteMutation.isPending}
+                      className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    >
+                      {deleteMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="p-4 rounded-2xl bg-muted/40 mb-4">
+                <Sparkles className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                {t('noDocuments')}
+              </p>
+              <p className="text-xs text-muted-foreground/70 mt-1">
+                {t('uploadToGetStarted')}
+              </p>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
