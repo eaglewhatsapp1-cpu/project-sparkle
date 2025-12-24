@@ -1,147 +1,129 @@
-import { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, MeshDistortMaterial, Sphere, Box, RoundedBox, Environment } from '@react-three/drei';
-import * as THREE from 'three';
+import { useEffect, useState } from 'react';
 
-function AnalyticsBar({ position, height, color, delay }: { position: [number, number, number]; height: number; color: string; delay: number }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.scale.y = 0.5 + Math.sin(state.clock.elapsedTime * 0.8 + delay) * 0.3 + 0.5;
-    }
-  });
-  
+function AnimatedBar({ delay, height, color }: { delay: number; height: string; color: string }) {
   return (
-    <RoundedBox
-      ref={meshRef}
-      args={[0.3, height, 0.3]}
-      radius={0.05}
-      position={position}
-    >
-      <meshStandardMaterial color={color} metalness={0.4} roughness={0.2} />
-    </RoundedBox>
-  );
-}
-
-function FloatingOrb({ position, scale, color }: { position: [number, number, number]; scale: number; color: string }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.5) * 0.2;
-    }
-  });
-  
-  return (
-    <Sphere ref={meshRef} args={[scale, 32, 32]} position={position}>
-      <MeshDistortMaterial
-        color={color}
-        transparent
-        opacity={0.8}
-        metalness={0.5}
-        roughness={0.1}
-        distort={0.2}
-        speed={2}
-      />
-    </Sphere>
-  );
-}
-
-function RotatingRing({ radius, color }: { radius: number; color: string }) {
-  const ringRef = useRef<THREE.Mesh>(null);
-  
-  useFrame((state) => {
-    if (ringRef.current) {
-      ringRef.current.rotation.z = state.clock.elapsedTime * 0.3;
-      ringRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.2) * 0.2;
-    }
-  });
-  
-  const geometry = useMemo(() => new THREE.TorusGeometry(radius, 0.02, 16, 100), [radius]);
-  
-  return (
-    <mesh ref={ringRef} geometry={geometry}>
-      <meshStandardMaterial color={color} metalness={0.8} roughness={0.2} transparent opacity={0.6} />
-    </mesh>
-  );
-}
-
-function DataCube() {
-  const cubeRef = useRef<THREE.Group>(null);
-  
-  useFrame((state) => {
-    if (cubeRef.current) {
-      cubeRef.current.rotation.y = state.clock.elapsedTime * 0.2;
-      cubeRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.3) * 0.1;
-    }
-  });
-  
-  return (
-    <group ref={cubeRef}>
-      {/* Main glass cube */}
-      <RoundedBox args={[1.2, 1.2, 1.2]} radius={0.1}>
-        <meshStandardMaterial
-          color="#a855f7"
-          transparent
-          opacity={0.15}
-          metalness={0.9}
-          roughness={0.1}
-        />
-      </RoundedBox>
-      
-      {/* Inner wireframe */}
-      <Box args={[1.1, 1.1, 1.1]}>
-        <meshBasicMaterial color="#a855f7" wireframe transparent opacity={0.3} />
-      </Box>
-      
-      {/* Analytics bars inside */}
-      <AnalyticsBar position={[-0.3, -0.2, 0]} height={0.6} color="#06b6d4" delay={0} />
-      <AnalyticsBar position={[0, -0.1, 0]} height={0.8} color="#8b5cf6" delay={1} />
-      <AnalyticsBar position={[0.3, -0.15, 0]} height={0.7} color="#ec4899" delay={2} />
-    </group>
-  );
-}
-
-function Scene() {
-  return (
-    <>
-      <ambientLight intensity={0.4} />
-      <pointLight position={[10, 10, 10]} intensity={1} color="#a855f7" />
-      <pointLight position={[-10, -10, -10]} intensity={0.5} color="#06b6d4" />
-      <spotLight position={[0, 10, 0]} intensity={0.8} color="#ffffff" angle={0.3} />
-      
-      <Float
-        speed={2}
-        rotationIntensity={0.5}
-        floatIntensity={1}
-      >
-        <DataCube />
-      </Float>
-      
-      {/* Orbiting elements */}
-      <FloatingOrb position={[1.8, 0.5, -1]} scale={0.2} color="#06b6d4" />
-      <FloatingOrb position={[-1.5, -0.8, -0.5]} scale={0.15} color="#ec4899" />
-      <FloatingOrb position={[1.2, -1, 0.5]} scale={0.12} color="#a855f7" />
-      
-      {/* Decorative rings */}
-      <RotatingRing radius={2} color="#a855f7" />
-      <RotatingRing radius={2.3} color="#06b6d4" />
-      
-      <Environment preset="night" />
-    </>
+    <div 
+      className="w-8 rounded-t-lg transition-all duration-1000 ease-in-out"
+      style={{
+        height,
+        background: `linear-gradient(180deg, ${color} 0%, ${color}40 100%)`,
+        boxShadow: `0 0 20px ${color}60`,
+        animation: `barPulse 2s ease-in-out ${delay}s infinite`,
+      }}
+    />
   );
 }
 
 export default function FloatingChart3D() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
-    <div className="w-full h-full">
-      <Canvas
-        camera={{ position: [0, 0, 5], fov: 50 }}
-        style={{ background: 'transparent' }}
+    <div className="relative w-full h-full flex items-center justify-center">
+      {/* Glowing orbs */}
+      <div className="absolute w-32 h-32 rounded-full bg-[hsl(262,80%,60%)] blur-[80px] opacity-50 animate-pulse" style={{ top: '10%', left: '20%' }} />
+      <div className="absolute w-24 h-24 rounded-full bg-[hsl(330,70%,55%)] blur-[60px] opacity-40 animate-pulse" style={{ top: '60%', right: '15%', animationDelay: '1s' }} />
+      <div className="absolute w-20 h-20 rounded-full bg-[hsl(200,90%,55%)] blur-[50px] opacity-40 animate-pulse" style={{ bottom: '20%', left: '30%', animationDelay: '0.5s' }} />
+
+      {/* Main 3D-like cube container */}
+      <div 
+        className={`relative transition-all duration-1000 ${mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
+        style={{
+          perspective: '1000px',
+          transformStyle: 'preserve-3d',
+        }}
       >
-        <Scene />
-      </Canvas>
+        {/* Rotating rings */}
+        <div 
+          className="absolute inset-0 w-64 h-64 -left-8 -top-8 border-2 border-[hsl(262,80%,60%)]/30 rounded-full"
+          style={{
+            animation: 'spin 20s linear infinite',
+          }}
+        />
+        <div 
+          className="absolute inset-0 w-72 h-72 -left-12 -top-12 border border-[hsl(200,90%,55%)]/20 rounded-full"
+          style={{
+            animation: 'spin 30s linear infinite reverse',
+          }}
+        />
+
+        {/* Glass cube */}
+        <div 
+          className="relative w-48 h-48 rounded-3xl overflow-hidden"
+          style={{
+            background: 'linear-gradient(145deg, rgba(168,85,247,0.15) 0%, rgba(168,85,247,0.05) 100%)',
+            border: '1px solid rgba(168,85,247,0.3)',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.3), inset 0 0 30px rgba(168,85,247,0.1)',
+            animation: 'float 6s ease-in-out infinite',
+            transform: 'rotateX(10deg) rotateY(-10deg)',
+          }}
+        >
+          {/* Wireframe effect */}
+          <div 
+            className="absolute inset-0 opacity-20"
+            style={{
+              backgroundImage: `linear-gradient(rgba(168,85,247,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.5) 1px, transparent 1px)`,
+              backgroundSize: '20px 20px',
+            }}
+          />
+
+          {/* Analytics bars */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-end gap-3">
+            <AnimatedBar delay={0} height="60px" color="hsl(200,90%,55%)" />
+            <AnimatedBar delay={0.3} height="90px" color="hsl(262,80%,60%)" />
+            <AnimatedBar delay={0.6} height="70px" color="hsl(330,70%,55%)" />
+            <AnimatedBar delay={0.9} height="50px" color="hsl(200,90%,55%)" />
+          </div>
+
+          {/* Floating data points */}
+          <div className="absolute top-6 left-6 w-3 h-3 rounded-full bg-[hsl(200,90%,55%)] animate-ping" style={{ animationDuration: '2s' }} />
+          <div className="absolute top-10 right-8 w-2 h-2 rounded-full bg-[hsl(330,70%,55%)] animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }} />
+          <div className="absolute top-16 left-10 w-2 h-2 rounded-full bg-[hsl(262,80%,60%)] animate-ping" style={{ animationDuration: '3s', animationDelay: '1s' }} />
+        </div>
+
+        {/* Orbiting particles */}
+        <div 
+          className="absolute w-4 h-4 rounded-full bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(330,70%,55%)]"
+          style={{
+            top: '0',
+            left: '50%',
+            boxShadow: '0 0 15px hsl(262,80%,60%)',
+            animation: 'orbit 8s linear infinite',
+          }}
+        />
+        <div 
+          className="absolute w-3 h-3 rounded-full bg-gradient-to-r from-[hsl(200,90%,55%)] to-[hsl(262,80%,60%)]"
+          style={{
+            bottom: '10%',
+            right: '10%',
+            boxShadow: '0 0 12px hsl(200,90%,55%)',
+            animation: 'orbit 12s linear infinite reverse',
+          }}
+        />
+      </div>
+
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: rotateX(10deg) rotateY(-10deg) translateY(0); }
+          50% { transform: rotateX(15deg) rotateY(-15deg) translateY(-15px); }
+        }
+        @keyframes orbit {
+          from { transform: rotate(0deg) translateX(120px) rotate(0deg); }
+          to { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
+        }
+        @keyframes barPulse {
+          0%, 100% { transform: scaleY(1); opacity: 1; }
+          50% { transform: scaleY(0.7); opacity: 0.7; }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
