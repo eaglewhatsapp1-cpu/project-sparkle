@@ -4,7 +4,7 @@ type Language = 'en' | 'ar';
 
 const translations = {
   en: {
-    appName: 'Market Analyzer',
+    appName: 'Smart Business Analyzer',
     dashboard: 'Dashboard',
     overview: 'Market Overview',
     overviewText: 'Comprehensive analysis of your target markets',
@@ -85,7 +85,7 @@ const translations = {
     projectDeleted: 'Project deleted',
   },
   ar: {
-    appName: 'محلل السوق',
+    appName: 'محلل الأعمال الذكي',
     dashboard: 'لوحة التحكم',
     overview: 'نظرة عامة على السوق',
     overviewText: 'تحليل شامل للأسواق المستهدفة',
