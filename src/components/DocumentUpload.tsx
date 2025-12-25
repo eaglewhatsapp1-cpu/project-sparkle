@@ -21,27 +21,10 @@ interface Document {
   content?: string | null;
 }
 
-const ALLOWED_TYPES = [
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/msword',
-  'text/plain',
-  'text/markdown',
-  'text/csv',
-  'text/html',
-  'text/xml',
-  'application/json',
-  'application/xml',
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'image/svg+xml',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-excel',
-];
+// Accept ALL file types - no restrictions
+const ALLOWED_TYPES: string[] = []; // Empty means accept all
 
-const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp', 'image/tiff'];
 const OCR_SUPPORTED_TYPES = [...IMAGE_TYPES, 'application/pdf'];
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
@@ -187,10 +170,7 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
   const processFiles = async (files: File[]) => {
     setIsUploading(true);
     for (const file of files) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        toast.error(`${file.name}: ${t('invalidFileType')}`);
-        continue;
-      }
+      // Accept all file types - no type restriction
       if (file.size > MAX_FILE_SIZE) {
         toast.error(`${file.name}: ${t('fileTooLarge')}`);
         continue;
@@ -291,7 +271,7 @@ export function DocumentUpload({ workspaceId, projectId }: DocumentUploadProps) 
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.txt,.docx,.doc,.md,.csv,.json,.xml,.html,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.webp,.svg"
+            accept="*/*"
             multiple
             onChange={handleFileSelect}
             className="hidden"
