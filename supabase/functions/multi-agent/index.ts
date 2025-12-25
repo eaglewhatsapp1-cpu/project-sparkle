@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.87.1";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 // ==== API CONFIGURATION ====
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -14,6 +15,35 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// ==== INPUT VALIDATION SCHEMA ====
+const requestSchema = z.object({
+  action: z.enum(["list-agents", "chat", "workflow"]),
+  agentId: z.string().max(50).optional(),
+  message: z.string().min(1, "Message cannot be empty").max(5000, "Message exceeds maximum length").optional(),
+  workspaceId: z.string().uuid().optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  autoWorkflow: z.boolean().optional(),
+});
+
+// ==== RATE LIMITING ====
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_REQUESTS = 15; // Lower for expensive multi-agent calls
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+
+  if (record.count >= RATE_LIMIT_REQUESTS) return false;
+  record.count++;
+  return true;
+}
 
 // ==== AGENT DEFINITIONS ====
 interface Agent {
@@ -420,8 +450,40 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
-    const { action, agentId, message, workspaceId, projectId, autoWorkflow } = body;
+    // Rate limiting (skip for list-agents)
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    
+    let body: any = {};
+    try {
+      body = JSON.parse(await req.text() || "{}");
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON payload" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // Validate input with Zod
+    const validation = requestSchema.safeParse(body);
+    if (!validation.success) {
+      return new Response(JSON.stringify({ 
+        error: "Validation error", 
+        details: validation.error.errors 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    const { action, agentId, message, workspaceId, projectId, autoWorkflow } = validation.data;
+
+    // Apply rate limiting for authenticated actions only
+    if (action !== "list-agents" && !checkRateLimit(ip)) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
 
     // Require authentication for all actions except list-agents
     const { userId, error: authError } = await extractUserId(req.headers.get("Authorization"));
@@ -436,7 +498,7 @@ serve(async (req) => {
       }
     }
     
-    const context = await loadContext(userId, workspaceId, projectId);
+    const context = await loadContext(userId, workspaceId ?? null, projectId ?? null);
 
     console.log(`Multi-agent request - Action: ${action}, Agent: ${agentId || 'auto'}, User: ${userId || 'anonymous'}`);
 
