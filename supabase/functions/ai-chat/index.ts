@@ -21,7 +21,7 @@ const corsHeaders = {
 // ==== INPUT VALIDATION SCHEMA ====
 const messageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
-  content: z.string().min(1, "Message cannot be empty").max(5000, "Message exceeds maximum length of 5000 characters"),
+  content: z.string().min(1, "Message cannot be empty").max(50000, "Message exceeds maximum length"),
 });
 
 const requestSchema = z.object({
