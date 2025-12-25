@@ -93,6 +93,7 @@ const Index = () => {
             <KnowledgeBaseTab
               workspaceId={selectedWorkspace?.id}
               projectId={selectedProject?.id}
+              projectName={selectedProject?.name}
             />
           </TabsContent>
 

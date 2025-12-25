@@ -282,7 +282,7 @@ export function ChatTab({ workspaceId, projectId, projectName }: ChatTabProps) {
   };
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-500 flex flex-col h-[calc(100vh-280px)]">
+    <div className="space-y-4 animate-in fade-in duration-500 flex flex-col h-[calc(100vh-200px)] min-h-[500px]">
       <AgentSelector
         selectedAgent={selectedAgent}
         onSelectAgent={handleSelectAgent}
@@ -322,8 +322,8 @@ export function ChatTab({ workspaceId, projectId, projectName }: ChatTabProps) {
         )}
       </Card>
 
-      <Card className="flex-1 flex flex-col shadow-card min-h-0">
-        <CardHeader className="py-3 border-b border-border/30">
+      <Card className="flex-1 flex flex-col shadow-card min-h-0 overflow-hidden">
+        <CardHeader className="py-3 border-b border-border/30 flex-shrink-0">
           <CardTitle className="flex items-center gap-2 text-base">
             {selectedAgent ? (
               <>
@@ -343,8 +343,8 @@ export function ChatTab({ workspaceId, projectId, projectName }: ChatTabProps) {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 flex flex-col p-0 min-h-0">
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
+          <ScrollArea className="flex-1 p-4 h-full" ref={scrollRef} style={{ maxHeight: 'calc(100% - 80px)' }}>
             <div className="space-y-4">
               {messages.map((message, idx) => (
                 <div key={idx} className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
@@ -415,7 +415,7 @@ export function ChatTab({ workspaceId, projectId, projectName }: ChatTabProps) {
             </div>
           </ScrollArea>
 
-          <div className="p-4 border-t">
+          <div className="p-4 border-t flex-shrink-0 bg-background">
             <div className="flex gap-2">
               <div className="flex-1 relative">
                 <Input
