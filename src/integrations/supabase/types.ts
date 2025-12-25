@@ -202,6 +202,7 @@ export type Database = {
       }
       projects: {
         Row: {
+          ai_instructions: string | null
           created_at: string
           description: string | null
           id: string
@@ -211,6 +212,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          ai_instructions?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -220,6 +222,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          ai_instructions?: string | null
           created_at?: string
           description?: string | null
           id?: string

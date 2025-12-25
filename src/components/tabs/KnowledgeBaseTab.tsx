@@ -5,9 +5,10 @@ import { useLanguage } from '@/contexts/LanguageContext';
 interface KnowledgeBaseTabProps {
   workspaceId?: string;
   projectId?: string;
+  projectName?: string;
 }
 
-export function KnowledgeBaseTab({ workspaceId, projectId }: KnowledgeBaseTabProps) {
+export function KnowledgeBaseTab({ workspaceId, projectId, projectName }: KnowledgeBaseTabProps) {
   const { t } = useLanguage();
 
   return (
@@ -17,7 +18,7 @@ export function KnowledgeBaseTab({ workspaceId, projectId }: KnowledgeBaseTabPro
         <DocumentUpload workspaceId={workspaceId} projectId={projectId} />
 
         {/* AI Configuration Section */}
-        <SettingsPanel />
+        <SettingsPanel projectId={projectId} projectName={projectName} />
       </div>
     </div>
   );

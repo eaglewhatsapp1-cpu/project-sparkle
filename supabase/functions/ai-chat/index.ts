@@ -102,8 +102,14 @@ async function loadUserKnowledgeBase(
   userId: string | null, 
   workspaceId: string | null | undefined, 
   projectId: string | null | undefined
-): Promise<{ documents: string; customPrompt: string | null; companyName: string | null; imageUrls: string[] }> {
-  if (!userId) return { documents: "", customPrompt: null, companyName: null, imageUrls: [] };
+): Promise<{ 
+  documents: string; 
+  customPrompt: string | null; 
+  projectPrompt: string | null;
+  companyName: string | null; 
+  imageUrls: string[] 
+}> {
+  if (!userId) return { documents: "", customPrompt: null, projectPrompt: null, companyName: null, imageUrls: [] };
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   
@@ -118,6 +124,7 @@ async function loadUserKnowledgeBase(
   const { data: docs, error: docsError } = await docsQuery.order("created_at", { ascending: false });
   if (docsError) console.error("Error fetching documents:", docsError);
 
+  // Fetch user profile
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("system_prompt, company_name, display_name")
@@ -125,6 +132,19 @@ async function loadUserKnowledgeBase(
     .maybeSingle();
 
   if (profileError) console.error("Error fetching profile:", profileError);
+
+  // Fetch project-specific AI instructions if projectId is provided
+  let projectPrompt: string | null = null;
+  if (projectId) {
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("ai_instructions")
+      .eq("id", projectId)
+      .maybeSingle();
+    
+    if (projectError) console.error("Error fetching project:", projectError);
+    projectPrompt = project?.ai_instructions || null;
+  }
 
   let documentsContent = "";
   const imageUrls: string[] = [];
@@ -169,6 +189,7 @@ async function loadUserKnowledgeBase(
   return {
     documents: documentsContent,
     customPrompt: profile?.system_prompt || null,
+    projectPrompt,
     companyName: profile?.company_name || null,
     imageUrls,
   };
@@ -287,10 +308,14 @@ function buildSystemPrompt(
   documents: string,
   countriesContext: string,
   customPrompt: string | null,
+  projectPrompt: string | null,
   companyName: string | null,
   country?: string
 ): string {
   const companyContext = companyName ? `You are assisting ${companyName}. ` : "";
+
+  // Project instructions take priority over user-level instructions
+  const effectiveInstructions = projectPrompt || customPrompt;
 
   const basePrompt = `${companyContext}You are an expert AI research assistant with capabilities in:
 - Market analysis and business intelligence
@@ -313,7 +338,7 @@ User messages are clearly marked with [USER MESSAGE START] and [USER MESSAGE END
 === CONTEXT ===
 ${documents}
 ${countriesContext}
-${customPrompt ? `\n=== USER'S CUSTOM INSTRUCTIONS ===\n${customPrompt}` : ""}`;
+${effectiveInstructions ? `\n=== CUSTOM AI INSTRUCTIONS ===\n${effectiveInstructions}` : ""}`;
 
   let typePrompt = "";
   if (type === "questions") typePrompt = "\nGenerate exactly 5 analytical questions in JSON array format.";
@@ -375,10 +400,10 @@ serve(async (req) => {
 
     console.log(`AI Chat request - Type: ${type}, User: ${userId}`);
 
-    const { documents, customPrompt, companyName, imageUrls } = await loadUserKnowledgeBase(userId, workspaceId, projectId);
+    const { documents, customPrompt, projectPrompt, companyName, imageUrls } = await loadUserKnowledgeBase(userId, workspaceId, projectId);
     const countriesContext = await fetchUserCountries(userId);
 
-    const systemPrompt = buildSystemPrompt(type, documents, countriesContext, customPrompt, companyName, country);
+    const systemPrompt = buildSystemPrompt(type, documents, countriesContext, customPrompt, projectPrompt, companyName, country);
     const truncatedSystemPrompt = truncateContent(systemPrompt);
     const truncatedUserMessages = truncateMessages(messages);
     const aiMessages = [{ role: "system", content: truncatedSystemPrompt }, ...truncatedUserMessages];
