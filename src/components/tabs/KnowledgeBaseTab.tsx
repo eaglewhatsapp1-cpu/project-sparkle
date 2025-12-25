@@ -18,7 +18,7 @@ export function KnowledgeBaseTab({ workspaceId, projectId, projectName }: Knowle
         <DocumentUpload workspaceId={workspaceId} projectId={projectId} />
 
         {/* AI Configuration Section */}
-        <SettingsPanel projectId={projectId} projectName={projectName} />
+        <SettingsPanel />
       </div>
     </div>
   );
