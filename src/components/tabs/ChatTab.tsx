@@ -281,8 +281,19 @@ export function ChatTab({ workspaceId, projectId, projectName }: ChatTabProps) {
     }
   };
 
+  // Get active agent info for display
+  const agents = [
+    { id: 'research', name: language === 'ar' ? 'باحث' : 'Researcher', icon: '🔍', color: 'bg-blue-500' },
+    { id: 'analyst', name: language === 'ar' ? 'محلل' : 'Analyst', icon: '📊', color: 'bg-green-500' },
+    { id: 'writer', name: language === 'ar' ? 'كاتب' : 'Writer', icon: '✍️', color: 'bg-purple-500' },
+    { id: 'strategist', name: language === 'ar' ? 'استراتيجي' : 'Strategist', icon: '🎯', color: 'bg-orange-500' },
+  ];
+
+  const activeAgent = agents.find(a => a.id === selectedAgent);
+
   return (
     <div className="space-y-4 animate-in fade-in duration-500 flex flex-col h-[calc(100vh-200px)] min-h-[500px]">
+      {/* Agent Selector */}
       <AgentSelector
         selectedAgent={selectedAgent}
         onSelectAgent={handleSelectAgent}
@@ -290,167 +301,208 @@ export function ChatTab({ workspaceId, projectId, projectName }: ChatTabProps) {
         onToggleAutoWorkflow={() => setAutoWorkflow(!autoWorkflow)}
       />
 
+      {/* Active Agent/Mode Indicator */}
+      {(selectedAgent || autoWorkflow) && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-accent/10 border border-accent/30">
+          {autoWorkflow ? (
+            <>
+              <Zap className="h-5 w-5 text-primary animate-pulse" />
+              <span className="font-medium text-primary">
+                {language === 'ar' ? 'سير العمل التلقائي مفعّل' : 'Auto Workflow Active'}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                {language === 'ar' ? '- سيتم اختيار الوكلاء تلقائياً' : '- Agents will be selected automatically'}
+              </span>
+            </>
+          ) : activeAgent && (
+            <>
+              <span className={cn("w-8 h-8 rounded-full flex items-center justify-center text-lg", activeAgent.color)}>
+                {activeAgent.icon}
+              </span>
+              <span className="font-medium">
+                {language === 'ar' ? 'الوكيل النشط:' : 'Active Agent:'}
+              </span>
+              <span className="text-accent font-semibold">{activeAgent.name}</span>
+            </>
+          )}
+        </div>
+      )}
+
       {currentWorkflow && <WorkflowDisplay workflow={currentWorkflow} />}
 
-      <Card className="border-primary/20 shadow-card">
-        <CardHeader className="py-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Lightbulb className="h-4 w-4 text-primary" />
-              {t('suggestedQuestions')}
-            </CardTitle>
-            <Button onClick={suggestQuestions} disabled={isLoadingQuestions} variant="secondary" size="sm" className="gap-2">
-              {isLoadingQuestions ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
-              {t('generate')}
-            </Button>
-          </div>
-        </CardHeader>
-        {suggestedQuestions.length > 0 && (
-          <CardContent className="pt-0">
-            <div className="grid gap-2 sm:grid-cols-2">
-              {suggestedQuestions.map((question, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => sendMessage(question)}
-                  className="text-left p-3 rounded-lg border border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-sm"
-                >
-                  {question}
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      <Card className="flex-1 flex flex-col shadow-card min-h-0 overflow-hidden">
-        <CardHeader className="py-3 border-b border-border/30 flex-shrink-0">
-          <CardTitle className="flex items-center gap-2 text-base">
-            {selectedAgent ? (
-              <>
-                <Zap className="h-4 w-4 text-accent" />
-                {language === 'ar' ? 'محادثة مع الوكيل' : 'Agent Chat'}
-              </>
-            ) : autoWorkflow ? (
-              <>
-                <Zap className="h-4 w-4 text-primary animate-pulse" />
-                {language === 'ar' ? 'سير العمل التلقائي' : 'Auto Workflow'}
-              </>
-            ) : (
-              <>
-                <Bot className="h-4 w-4 text-primary" />
-                {t('aiAdvisor')}
-              </>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
-          <ScrollArea className="flex-1 p-4 h-full" ref={scrollRef} style={{ maxHeight: 'calc(100% - 80px)' }}>
-            <div className="space-y-4">
-              {messages.map((message, idx) => (
-                <div key={idx} className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div
-                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                      message.role === 'assistant' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
-                    }`}
-                  >
-                    {message.role === 'assistant' ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                  </div>
-                  <div className="flex-1 space-y-2 max-w-[85%]">
-                    <div className={`p-4 rounded-lg ${message.role === 'assistant' ? 'bg-muted' : 'bg-primary/10 border border-primary/20'}`}>
-                      {message.role === 'assistant' ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            allowedElements={ALLOWED_MARKDOWN_ELEMENTS}
-                            unwrapDisallowed={true}
-                            urlTransform={transformLinkUri}
-                            className="text-base"
-                          >
-                            {message.content}
-                          </ReactMarkdown>
-                        </div>
-                      ) : (
-                        <p className="text-sm whitespace-pre-line leading-relaxed">{message.content}</p>
-                      )}
-                    </div>
-                    {message.role === 'assistant' && message.logId && (
-                      <div className="flex justify-end">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="gap-2 h-7">
-                              <Download className="h-3 w-3" />
-                              {t('export')}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleExport(message, 'text')}>
-                              <FileText className="h-4 w-4 mr-2" />
-                              {t('textFile')}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleExport(message, 'pdf')}>
-                              <FileType className="h-4 w-4 mr-2" />
-                              PDF
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleExport(message, 'word')}>
-                              <FileType className="h-4 w-4 mr-2" />
-                              Word
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-primary text-primary-foreground">
-                    <Bot className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 p-3 rounded-lg bg-muted">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-
-          <div className="p-4 border-t flex-shrink-0 bg-background">
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                  placeholder={t('askQuestion')}
-                  disabled={isLoading}
-                  className="pr-10"
-                />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                        onClick={enhancePrompt}
-                        disabled={isEnhancing || !input.trim() || isLoading}
-                      >
-                        {isEnhancing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-primary" />}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('enhancePrompt')}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Button onClick={() => sendMessage()} disabled={isLoading || !input.trim()} size="icon" className="shadow-glow">
-                <Send className="h-4 w-4" />
+      {/* Main Content - Vertical Split Layout */}
+      <div className="flex-1 flex gap-4 min-h-0">
+        {/* Left Panel - Suggested Questions */}
+        <Card className="w-80 flex-shrink-0 border-primary/20 shadow-card flex flex-col">
+          <CardHeader className="py-3 border-b border-border/30">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Lightbulb className="h-4 w-4 text-primary" />
+                {t('suggestedQuestions')}
+              </CardTitle>
+              <Button onClick={suggestQuestions} disabled={isLoadingQuestions} variant="secondary" size="sm" className="gap-2">
+                {isLoadingQuestions ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
+                {t('generate')}
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="flex-1 p-3 overflow-auto">
+            {suggestedQuestions.length > 0 ? (
+              <div className="space-y-2">
+                {suggestedQuestions.map((question, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => sendMessage(question)}
+                    className="w-full text-left p-3 rounded-lg border border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-sm"
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4">
+                <Lightbulb className="h-8 w-8 mb-2 opacity-50" />
+                <p className="text-sm">
+                  {language === 'ar' 
+                    ? 'انقر على "توليد" للحصول على أسئلة مقترحة بناءً على مستنداتك'
+                    : 'Click "Generate" to get suggested questions based on your documents'}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Right Panel - Chat */}
+        <Card className="flex-1 flex flex-col shadow-card min-h-0 overflow-hidden">
+          <CardHeader className="py-3 border-b border-border/30 flex-shrink-0">
+            <CardTitle className="flex items-center gap-2 text-base">
+              {selectedAgent ? (
+                <>
+                  <Zap className="h-4 w-4 text-accent" />
+                  {language === 'ar' ? 'محادثة مع الوكيل' : 'Agent Chat'}
+                </>
+              ) : autoWorkflow ? (
+                <>
+                  <Zap className="h-4 w-4 text-primary animate-pulse" />
+                  {language === 'ar' ? 'سير العمل التلقائي' : 'Auto Workflow'}
+                </>
+              ) : (
+                <>
+                  <Bot className="h-4 w-4 text-primary" />
+                  {t('aiAdvisor')}
+                </>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
+            <ScrollArea className="flex-1 p-4 h-full" ref={scrollRef} style={{ maxHeight: 'calc(100% - 80px)' }}>
+              <div className="space-y-4">
+                {messages.map((message, idx) => (
+                  <div key={idx} className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                    <div
+                      className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                        message.role === 'assistant' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
+                      }`}
+                    >
+                      {message.role === 'assistant' ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                    </div>
+                    <div className="flex-1 space-y-2 max-w-[85%]">
+                      <div className={`p-4 rounded-lg ${message.role === 'assistant' ? 'bg-muted' : 'bg-primary/10 border border-primary/20'}`}>
+                        {message.role === 'assistant' ? (
+                          <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              allowedElements={ALLOWED_MARKDOWN_ELEMENTS}
+                              unwrapDisallowed={true}
+                              urlTransform={transformLinkUri}
+                              className="text-base"
+                            >
+                              {message.content}
+                            </ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="text-sm whitespace-pre-line leading-relaxed">{message.content}</p>
+                        )}
+                      </div>
+                      {message.role === 'assistant' && message.logId && (
+                        <div className="flex justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="gap-2 h-7">
+                                <Download className="h-3 w-3" />
+                                {t('export')}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleExport(message, 'text')}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                {t('textFile')}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleExport(message, 'pdf')}>
+                                <FileType className="h-4 w-4 mr-2" />
+                                PDF
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleExport(message, 'word')}>
+                                <FileType className="h-4 w-4 mr-2" />
+                                Word
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-primary text-primary-foreground">
+                      <Bot className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 p-3 rounded-lg bg-muted">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+
+            <div className="p-4 border-t flex-shrink-0 bg-background">
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                    placeholder={t('askQuestion')}
+                    disabled={isLoading}
+                    className="pr-10"
+                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                          onClick={enhancePrompt}
+                          disabled={isEnhancing || !input.trim() || isLoading}
+                        >
+                          {isEnhancing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-primary" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('enhancePrompt')}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Button onClick={() => sendMessage()} disabled={isLoading || !input.trim()} size="icon" className="shadow-glow">
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
