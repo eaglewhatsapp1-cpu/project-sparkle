@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.87.1";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 // ==== LOVABLE AI CONFIGURATION ====
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -15,6 +16,33 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+// ==== INPUT VALIDATION SCHEMA ====
+const requestSchema = z.object({
+  documentId: z.string().uuid().optional(),
+  imageUrl: z.string().url().max(2000).optional(),
+}).refine(data => data.documentId || data.imageUrl, {
+  message: "Either documentId or imageUrl is required"
+});
+
+// ==== RATE LIMITING ====
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_REQUESTS = 10; // OCR is expensive
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+
+  if (record.count >= RATE_LIMIT_REQUESTS) return false;
+  record.count++;
+  return true;
+}
 
 // ==== OCR SYSTEM PROMPT ====
 const OCR_SYSTEM_PROMPT = `You are an advanced OCR (Optical Character Recognition) system specialized in extracting text from images and documents.
@@ -127,6 +155,15 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limiting
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!checkRateLimit(ip)) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
     // Authenticate user
     const { userId, error: authError } = await extractUserId(req.headers.get("Authorization"));
     if (authError || !userId) {
@@ -136,14 +173,29 @@ serve(async (req) => {
       });
     }
 
-    const { documentId, imageUrl } = await req.json();
-
-    if (!documentId && !imageUrl) {
-      return new Response(JSON.stringify({ error: "documentId or imageUrl required" }), {
+    let body: any = {};
+    try {
+      body = JSON.parse(await req.text() || "{}");
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON payload" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
+
+    // Validate input with Zod
+    const validation = requestSchema.safeParse(body);
+    if (!validation.success) {
+      return new Response(JSON.stringify({ 
+        error: "Validation error", 
+        details: validation.error.errors 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    const { documentId, imageUrl } = validation.data;
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     let urlToProcess = imageUrl;
@@ -186,7 +238,7 @@ serve(async (req) => {
     console.log(`OCR request - User: ${userId}, Document: ${documentId || 'direct URL'}`);
 
     // Perform OCR
-    const extractedText = await performOCR(urlToProcess, docData?.file_type);
+    const extractedText = await performOCR(urlToProcess!, docData?.file_type);
 
     // If documentId provided, update the document content
     if (documentId && docData) {

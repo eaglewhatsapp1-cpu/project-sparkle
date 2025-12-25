@@ -21,11 +21,11 @@ const corsHeaders = {
 // ==== INPUT VALIDATION SCHEMA ====
 const messageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
-  content: z.string().min(1),
+  content: z.string().min(1, "Message cannot be empty").max(5000, "Message exceeds maximum length of 5000 characters"),
 });
 
 const requestSchema = z.object({
-  messages: z.array(messageSchema).min(1).max(30),
+  messages: z.array(messageSchema).min(1, "At least one message required").max(30, "Maximum 30 messages allowed"),
   type: z.enum(["chat", "questions", "summary", "enhance"]).optional().default("chat"),
   country: z.string().max(100).optional(),
   workspaceId: z.string().uuid().optional().nullable(),
